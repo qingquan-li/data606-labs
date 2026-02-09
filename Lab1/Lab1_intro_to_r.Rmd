@@ -177,6 +177,10 @@ The dollar sign basically says "go to the data frame that comes before me, and f
 
 **Insert your answer here**
 
+```{r view-girls}
+arbuthnot$girls
+```
+
 Notice that the way R has printed these data is different.
 When we looked at the complete data frame, we saw 82 rows, one on each line of the display.
 These data are no longer structured in a table with other variables, so they are displayed one right after another.
@@ -228,6 +232,19 @@ You can toggle between plots and help files using the tabs at the top of that pa
 1.  Is there an apparent trend in the number of girls baptized over the years? How would you describe it? (To ensure that your lab report is comprehensive, be sure to include the code needed to make the plot as well as your written interpretation.)
 
 **Insert your answer here**
+
+```{r plot-girls-vs-year-trend}
+ggplot(data = arbuthnot, aes(x = year, y = girls)) +
+  geom_line() +
+  labs(
+    title = "Number of Girls Baptized per Year",
+    x = "Year",
+    y = "Number of Girls Baptized"
+  )
+```
+
+**My finding:  
+While there is noticeable variability from year to year, the long-term trend in the number of girls baptized appears to be increasing.**
 
 ### R as a big calculator
 
@@ -320,6 +337,14 @@ Note that we are using the new `total` variable we created earlier in our calcul
 
 **Insert your answer here**
 
+```{r plot-proportion-of-boys}
+ggplot(data = arbuthnot, aes(x = year, y = boy_ratio)) +
+  geom_line()
+```
+
+**My finding:  
+The proportion of boys is above 0.5 every year, which means that more boys are born than girls each year.**
+
 <div>
 
 **Tip:** If you use the up and down arrow keys, you can scroll through your previous commands, your so-called command history.
@@ -364,13 +389,62 @@ arbuthnot %>%
 
 **Insert your answer here**
 
+```{r present-years-dimensions-column-names}
+str(present)
+range(present$year)
+
+dim(present)
+
+names(present)
+```
+
+**My finding:  
+Years: 1940-2002
+Dimensions: 63 rows x 3 columns.
+Variable (column) names: year, boys, and girls.**
+
 1.  How do these counts compare to Arbuthnot's? Are they of a similar magnitude?
 
 **Insert your answer here**
 
+```{r compare-ranges-of-births}
+arbuthnot %>%
+  summarize(
+    min_boys = min(boys),
+    max_boys = max(boys)
+  )
+
+present %>%
+  summarize(
+    min_boys = min(boys),
+    max_boys = max(boys)
+  )
+```
+
+**My finding:  
+The birth counts in the present dataset are much larger than those in Arbuthnot’s data.  
+Arbuthnot’s counts are in the thousands, while present-day U.S. birth counts are in the millions.**
+
 1.  Make a plot that displays the proportion of boys born over time. What do you see? Does Arbuthnot's observation about boys being born in greater proportion than girls hold up in the U.S.? Include the plot in your response. *Hint:* You should be able to reuse your code from Exercise 3 above, just replace the dataframe name.
 
 **Insert your answer here**
+
+```{r proportion-of-boys-born-over-time}
+present <- present %>%
+  mutate(prop_boys = boys / (boys + girls))
+
+ggplot(data = present, aes(x = year, y = prop_boys)) +
+  geom_line() +
+  labs(
+    title = "Proportion of Boys Born in the U.S. Over Time",
+    x = "Year",
+    y = "Proportion of Boys"
+  )
+```
+
+**My finding:  
+The proportion of boys born each year remains consistently above 0.5, indicating that boys are born more frequently than girls.  
+This supports Arbuthnot’s observation that boys tend to be born in greater proportion than girls, even in modern U.S. data.**
 
 1.  In what year did we see the most total number of births in the U.S.? *Hint:* First calculate the totals and save it as a new variable. Then, sort your dataset in descending order based on the total column. You can do this interactively in the data viewer by clicking on the arrows next to the variable names. To include the sorted result in your report you will need to use two new functions: `arrange` (for sorting). We can arrange the data in a descending order with another function: `desc` (for descending order). The sample code is provided below.
 
@@ -380,6 +454,16 @@ present %>%
 ```
 
 **Insert your answer here**
+
+```{r year-with-the-most-total-births}
+present %>%
+  mutate(total = boys + girls) %>%
+  arrange(desc(total))
+```
+
+**My finding:  
+The year the most total number of births in the U.S. is 1961.**
+
 
 These data come from reports by the Centers for Disease Control.
 You can learn more about them by bringing up the help file using the command `?present`.

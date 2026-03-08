@@ -2,7 +2,6 @@
 title: "The normal distribution"
 author: ""
 output:
-  pdf_document: default
   html_document:
     includes:
       in_header: header.html
@@ -11,6 +10,7 @@ output:
     theme: cerulean
     toc: true
     toc_float: true
+  pdf_document: default
 editor_options: 
   chunk_output_type: console
 ---
@@ -65,6 +65,26 @@ dairy_queen <- fastfood %>%
 
 **Insert your answer here**
 
+=======================================
+
+```{r ex1}
+# Side-by-side histograms
+ggplot(data = fastfood %>% filter(restaurant %in% c("Mcdonalds", "Dairy Queen")), 
+       aes(x = cal_fat)) +
+  geom_histogram(binwidth = 50, fill = "steelblue", color = "white") +
+  facet_wrap(~ restaurant, ncol = 1) +
+  labs(title = "Distribution of Calories from Fat", 
+       x = "Calories from Fat", y = "Count")
+
+# Summary statistics
+mcdonalds %>% summarise(mean = mean(cal_fat), median = median(cal_fat), sd = sd(cal_fat), IQR = IQR(cal_fat))
+dairy_queen %>% summarise(mean = mean(cal_fat), median = median(cal_fat), sd = sd(cal_fat), IQR = IQR(cal_fat))
+```
+
+Both distributions are unimodal and right-skewed. McDonald's has a higher center (mean ~ 286, median ~ 240) compared to Dairy Queen (mean ~ 260, median ~ 220). McDonald's also has a larger spread (sd ~ 221) compared to Dairy Queen (sd ~ 156). Both distributions have a longer right tail, indicating some menu items with very high calories from fat.
+
+=======================================
+
 ## The normal distribution
 
 In your description of the distributions, did you use words like *bell-shaped*or *normal*?  It's tempting to say so when faced with a unimodal symmetric distribution.
@@ -93,6 +113,14 @@ After initializing a blank plot with `geom_blank()`, the `ggplot2` package (with
 
 **Insert your answer here**
 
+=======================================
+
+The histogram of Dairy Queen's calories from fat is roughly unimodal and somewhat bell-shaped, so the data do appear to follow a nearly normal distribution.
+
+However, the distribution shows some right skew — the right tail extends further than the left, and there are a few high-calorie items that pull the distribution away from perfect normality.
+
+=======================================
+
 ## Evaluating the normal distribution
 
 Eyeballing the shape of the histogram is one way to determine if the data appear to be nearly normally distributed, but it can be frustrating to decide just how close the histogram is to the curve. An alternative approach involves constructing a normal probability plot, also called a normal Q-Q plot for "quantile-quantile".
@@ -120,6 +148,20 @@ The first argument indicates how many numbers you'd like to generate, which we s
 
 **Insert your answer here**
 
+=======================================
+
+```{r ex3}
+ggplot(data = NULL, aes(sample = sim_norm)) + 
+  geom_line(stat = "qq") +
+  labs(title = "Normal Q-Q Plot of Simulated Data")
+```
+
+Not all of the points fall exactly on the line, even though the data were generated from a perfect normal distribution.
+
+The points follow the diagonal line much more closely overall than the real Dairy Queen data. The real data showed more noticeable deviations in the upper tail, while the simulated data's departures from the line are smaller and more random. -> Even truly normal data won't produce a perfectly straight Q-Q plot.
+
+=======================================
+
 Even better than comparing the original plot to a single plot generated from a normal distribution is to compare it to many more plots using the following function. It shows the Q-Q plot corresponding to the original data in the top left corner, and the Q-Q plots of 8 different simulated normal data.  It may be helpful to click the zoom button in the plot window.
 
 ```{r}
@@ -132,10 +174,48 @@ qqnormsim(sample = cal_fat, data = dairy_queen)
 
 **Insert your answer here**
 
+=======================================
+
+Yes, the normal probability plot for Dairy Queen's calories from fat looks reasonably similar to the simulated Q-Q plots.
+
+The points in the real data generally follow the diagonal line in the central portion, similar to what we see in the simulated plots. Overall, the plots provide evidence that the calories from fat are approximately normally distributed, though not perfectly so.
+
+=======================================
+
 5.  Using the same technique, determine whether or not the calories from McDonald's
     menu appear to come from a normal distribution.
 
 **Insert your answer here**
+
+=======================================
+
+```{r ex5}
+# Histogram with normal curve overlay
+mcmean <- mean(mcdonalds$cal_fat)
+mcsd <- sd(mcdonalds$cal_fat)
+
+ggplot(data = mcdonalds, aes(x = cal_fat)) +
+  geom_blank() +
+  geom_histogram(aes(y = ..density..)) +
+  stat_function(fun = dnorm, args = c(mean = mcmean, sd = mcsd), col = "tomato") +
+  labs(title = "McDonald's Calories from Fat with Normal Curve")
+
+# Q-Q plot
+ggplot(data = mcdonalds, aes(sample = cal_fat)) + 
+  geom_line(stat = "qq") +
+  labs(title = "Normal Q-Q Plot: McDonald's Calories from Fat")
+
+# qqnormsim comparison
+qqnormsim(sample = cal_fat, data = mcdonalds)
+```
+
+The histogram for McDonald's calories from fat shows a right-skewed distribution, the normal curve does not fit as well as it did for Dairy Queen, with the peak shifted to the left.
+
+The Q-Q plot confirms this: the points curve upward away from the line in the upper tail, indicating right skew.
+
+Compared to the simulated normal Q-Q plots, the McDonald's data shows more systematic deviation from the line. Therefore, the calories from fat for McDonald's do not appear to follow a normal distribution as closely as Dairy Queen's data; the distribution is notably right-skewed.
+
+=======================================
 
 ## Normal probabilities
 
@@ -165,6 +245,42 @@ Although the probabilities are not exactly the same, they are reasonably close. 
 
 **Insert your answer here**
 
+=======================================
+
+Question 1:
+
+What is the probability that a randomly chosen Dairy Queen item has fewer than 150 calories from fat?
+
+```{r ex6-q1}
+# Theoretical probability
+pnorm(q = 150, mean = dqmean, sd = dqsd)
+
+# Empirical probability
+dairy_queen %>%
+  filter(cal_fat < 150) %>%
+  summarise(percent = n() / nrow(dairy_queen))
+```
+
+Question 2:
+
+What is the probability that a randomly chosen McDonald's item has more than 400 calories from fat?
+
+```{r ex6-q2}
+# Theoretical probability
+1 - pnorm(q = 400, mean = mcmean, sd = mcsd)
+
+# Empirical probability
+mcdonalds %>%
+  filter(cal_fat > 400) %>%
+  summarise(percent = n() / nrow(mcdonalds))
+```
+
+Question 1 (Dairy Queen, fewer than 150 cal from fat) tends to have closer agreement between the theoretical and empirical probabilities, because Dairy Queen's calorie-from-fat distribution is closer to normal than McDonald's.
+
+When the data follow the normal distribution more closely, the theoretical probability calculated using `pnorm` will better match the empirical proportion from the data. McDonald's right-skewed distribution means the normal model is less accurate, so the two methods show more disagreement for Question 2.
+
+=======================================
+
 * * *
 
 ## More Practice
@@ -173,12 +289,75 @@ Although the probabilities are not exactly the same, they are reasonably close. 
    
 **Insert your answer here**
 
+=======================================
+
+```{r ex7}
+# Get all unique restaurants
+restaurants <- unique(fastfood$restaurant)
+
+# Create Q-Q plots for sodium by restaurant
+ggplot(data = fastfood, aes(sample = sodium)) +
+  geom_line(stat = "qq") +
+  facet_wrap(~ restaurant, scales = "free") +
+  labs(title = "Normal Q-Q Plots of Sodium by Restaurant")
+
+# Also check histograms
+ggplot(data = fastfood, aes(x = sodium)) +
+  geom_histogram(aes(y = ..density..), bins = 15) +
+  facet_wrap(~ restaurant, scales = "free") +
+  stat_function(fun = dnorm, 
+                args = list(mean = mean(fastfood$sodium, na.rm = TRUE), 
+                            sd = sd(fastfood$sodium, na.rm = TRUE)), 
+                col = "tomato") +
+  labs(title = "Sodium Distributions by Restaurant")
+```
+
+Based on the Q-Q plots, **Burger King** and **Taco Bell** tend to have sodium distributions that are closest to normal.
+
+Their Q-Q plots show points that follow the diagonal line most closely with relatively minor deviations in the tails.
+
+=======================================
+
 8.  Note that some of the normal probability plots for sodium distributions seem to have a stepwise pattern. why do you think this might be the case?
 
 **Insert your answer here**
 
+=======================================
+
+Because sodium values in fast food items tend to come in discrete, rounded amounts rather than continuous values.
+
+Restaurants often have menu items with similar sodium levels (e.g., many items clustered at 500 mg, 1000 mg, 1500 mg, etc.) because items share common ingredients and preparation methods.
+
+When multiple observations take the same or very similar values, they appear as flat "steps" (horizontal segments) on the Q-Q plot since the y-axis values stay constant while the theoretical quantiles on the x-axis continue to increase.
+
+=======================================
+
 9.  As you can see, normal probability plots can be used both to assess normality and visualize skewness.  Make a normal probability plot for the total carbohydrates from a restaurant of your choice.  Based on this normal probability plot, is this variable left skewed, symmetric, or right skewed? Use a histogram to confirm your findings.
 
 **Insert your answer here**
+
+=======================================
+
+```{r ex9}
+subway <- fastfood %>% filter(restaurant == "Subway")
+
+# Normal probability (Q-Q) plot for total carbs
+ggplot(data = subway, aes(sample = total_carb)) +
+  geom_line(stat = "qq") +
+  labs(title = "Normal Q-Q Plot: Subway Total Carbohydrates",
+       y = "Total Carbohydrates (g)")
+
+# Histogram to confirm
+ggplot(data = subway, aes(x = total_carb)) +
+  geom_histogram(binwidth = 10, fill = "steelblue", color = "white") +
+  labs(title = "Distribution of Total Carbohydrates at Subway",
+       x = "Total Carbohydrates (g)", y = "Count")
+```
+
+Right skew: the Q-Q plot for Subway's total carbohydrates shows the points curving upward above the line at the upper end and staying close to or below the line at the lower end.
+
+The histogram confirms this finding: the distribution has a peak on the left side with a long tail stretching to the right, indicating that most Subway items have moderate carbohydrate levels but a few items have much higher carb counts.
+
+=======================================
 
 * * *

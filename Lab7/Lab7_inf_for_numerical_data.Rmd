@@ -15,6 +15,7 @@ editor_options:
   chunk_output_type: console
 ---
 
+
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(eval = TRUE, message = FALSE, warning = FALSE)
 ```
@@ -53,7 +54,13 @@ There are observations on 13 different variables, some categorical and some nume
 
 1.  What are the cases in this data set? How many cases are there in our sample?
 
-**Insert your answer here**
+Each case represents an individual high school student (grades 9 through 12) who responded to the YRBSS survey. We can find the number of cases using `glimpse` or `nrow`:
+
+```{r ex1}
+nrow(yrbss)
+```
+
+There are 13,583 cases in the sample.
 
 Remember that you can answer this question by viewing the data in the data viewer or by using the following command:
 
@@ -73,7 +80,11 @@ summary(yrbss$weight)
 
 2.  How many observations are we missing weights from?
 
-**Insert your answer here**
+```{r ex2}
+sum(is.na(yrbss$weight))
+```
+
+There are 1,004 observations with missing weight values (NAs).
 
 Next, consider the possible relationship between a high schooler's weight and their physical activity. Plotting the data is a useful first step because it helps us quickly visualize trends, identify strong associations, and develop research questions.
 
@@ -87,7 +98,17 @@ yrbss <- yrbss %>%
 
 3.  Make a side-by-side boxplot of `physical_3plus` and `weight`. Is there a relationship between these two variables? What did you expect and why?
 
-**Insert your answer here**
+```{r ex3}
+yrbss %>%
+  drop_na(physical_3plus, weight) %>%
+  ggplot(aes(x = physical_3plus, y = weight)) +
+  geom_boxplot() +
+  labs(x = "Physically active 3+ days/week",
+       y = "Weight (kg)",
+       title = "Weight by Physical Activity Level")
+```
+
+The boxplot shows that students who are physically active at least 3 days per week tend to have a slightly higher median weight compared to those who are not. This is somewhat expected because students who exercise more may have greater muscle mass, which contributes to higher weight. However, the difference is not dramatic and the distributions overlap considerably.
 
 The box plots show how the medians of the two distributions compare, but we can also compare the means of the distributions using the following to first group the data by the `physical_3plus` variable, and then calculate the mean `weight` in these groups using the `mean` function while ignoring missing values by setting the `na.rm` argument to `TRUE`.
 
@@ -103,11 +124,28 @@ There is an observed difference, but is this difference statistically significan
 
 4.  Are all conditions necessary for inference satisfied? Comment on each. You can compute the group sizes with the `summarize` command above by defining a new variable with the definition `n()`.
 
-**Insert your answer here**
+```{r ex4}
+yrbss %>%
+  drop_na(physical_3plus, weight) %>%
+  group_by(physical_3plus) %>%
+  summarise(count = n(), mean_wt = mean(weight), sd_wt = sd(weight))
+```
+
+We need to check three conditions for inference:
+
+- **Independence**: The observations are from a random sample of high school students collected by the CDC, and the sample size (13,583) is less than 10% of all U.S. high schoolers. The two groups (physically active 3+ days vs. not) are independent of each other. This condition is satisfied.
+
+- **Sample size**: Both groups have well over 30 observations (thousands in each group), so the sample size condition is met.
+
+- **Normality / skew**: With such large sample sizes in both groups, the Central Limit Theorem ensures that the sampling distribution of the mean will be approximately normal even if the underlying data are somewhat skewed. This condition is satisfied.
+
+All conditions necessary for inference are met.
 
 5.  Write the hypotheses for testing if the average weights are different for those who exercise at least times a week and those who don't.
 
-**Insert your answer here**
+$H_0$: $\mu_{yes} = \mu_{no}$ -- There is no difference in the average weight of high schoolers who are physically active at least 3 days per week and those who are not. Any observed difference is due to chance.
+
+$H_A$: $\mu_{yes} \neq \mu_{no}$ -- There is a difference in the average weight of high schoolers who are physically active at least 3 days per week and those who are not.
 
 Next, we will introduce a new function, `hypothesize`, that falls into the `infer` workflow. You will use this method for conducting hypothesis tests. 
 
@@ -147,7 +185,13 @@ ggplot(data = null_dist, aes(x = stat)) +
 
 6. How many of these `null` permutations have a difference of at least `obs_stat`?
 
-**Insert your answer here**
+```{r ex6}
+null_dist %>%
+  filter(abs(stat) >= abs(obs_diff$stat)) %>%
+  nrow()
+```
+
+Very few (likely zero) of the 1,000 null permutations have a difference in means as extreme as or more extreme than the observed difference. This suggests the observed difference is very unlikely to have occurred by chance alone.
 
 Now that the test is initialized and the null distribution formed, you can calculate the p-value for your hypothesis test using the function `get_p_value`.
 
@@ -160,28 +204,164 @@ This the standard workflow for performing hypothesis tests.
 
 7.  Construct and record a confidence interval for the difference between the weights of those who exercise at least three times a week and those who don't, and interpret this interval in context of the data.
 
+```{r ex7}
+boot_diff <- yrbss %>%
+  drop_na(physical_3plus, weight) %>%
+  specify(weight ~ physical_3plus) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+
+ci_diff <- boot_diff %>%
+  get_confidence_interval(level = 0.95)
+ci_diff
+
+obs_diff
+```
+
+We are 95% confident that the true difference in average weight between high schoolers who are physically active at least 3 days per week and those who are not is between the lower and upper bounds of this interval. Since the entire interval is positive (above zero), this provides strong evidence that students who exercise more weigh more on average, which may be attributable to greater muscle mass.
+
 * * *
 
 ## More Practice
 
 8.  Calculate a 95% confidence interval for the average height in meters (`height`) and interpret it in context.
 
-**Insert your answer here**
+```{r ex8}
+boot_height <- yrbss %>%
+  drop_na(height) %>%
+  specify(response = height) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "mean")
+
+ci_height_95 <- boot_height %>%
+  get_confidence_interval(level = 0.95)
+ci_height_95
+```
+
+We are 95% confident that the true average height of all high school students in the population is between the lower and upper bounds of this interval (in meters).
 
 9.  Calculate a new confidence interval for the same parameter at the 90% confidence level. Comment on the width of this interval versus the one obtained in the previous exercise.
 
-**Insert your answer here**
+```{r ex9}
+ci_height_90 <- boot_height %>%
+  get_confidence_interval(level = 0.90)
+ci_height_90
+```
+
+The 90% confidence interval is narrower than the 95% confidence interval. This is expected because a lower confidence level means we are accepting more risk of being wrong (a higher chance that the interval does not capture the true parameter), so the interval does not need to be as wide.
 
 10.  Conduct a hypothesis test evaluating whether the average height is different for those who exercise at least three times a week and those who don't.
 
-**Insert your answer here**
+```{r ex10}
+# Observed difference in mean height
+obs_diff_height <- yrbss %>%
+  drop_na(physical_3plus, height) %>%
+  specify(height ~ physical_3plus) %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+obs_diff_height
+
+# Null distribution via permutation
+null_dist_height <- yrbss %>%
+  drop_na(physical_3plus, height) %>%
+  specify(height ~ physical_3plus) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+
+# P-value
+null_dist_height %>%
+  get_p_value(obs_stat = obs_diff_height, direction = "two_sided")
+
+# Visualize
+visualize(null_dist_height) +
+  shade_p_value(obs_stat = obs_diff_height, direction = "two_sided")
+```
+
+$H_0$: $\mu_{yes} = \mu_{no}$ -- There is no difference in average height between students who exercise at least 3 days per week and those who do not.
+
+$H_A$: $\mu_{yes} \neq \mu_{no}$ -- There is a difference in average height between the two groups.
+
+The p-value is very small (essentially 0), so we reject the null hypothesis. There is strong evidence that the average height differs between students who are physically active at least 3 days per week and those who are not. Students who exercise more tend to be slightly taller on average.
 
 11.  Now, a non-inference task: Determine the number of different options there are in the dataset for the `hours_tv_per_school_day` there are.
 
-**Insert your answer here**
+```{r ex11}
+yrbss %>%
+  distinct(hours_tv_per_school_day) %>%
+  nrow()
+
+yrbss %>%
+  distinct(hours_tv_per_school_day)
+```
+
+There are 7 distinct non-NA response options in the dataset for `hours_tv_per_school_day`.
 
 12. Come up with a research question evaluating the relationship between height or weight and sleep. Formulate the question in a way that it can be answered using a hypothesis test and/or a confidence interval. Report the statistical results, and also provide an explanation in plain language. Be sure to check all assumptions, state your $\alpha$ level, and conclude in context.
 
-**Insert your answer here**
+**Research question**: Is there a difference in average weight between students who get sufficient sleep (8 or more hours per school night) and those who do not?
+
+We will use a significance level of $\alpha = 0.05$.
+
+**Hypotheses**:
+
+$H_0$: $\mu_{sufficient} = \mu_{insufficient}$ -- There is no difference in average weight between students who sleep 8+ hours and those who sleep fewer than 8 hours.
+
+$H_A$: $\mu_{sufficient} \neq \mu_{insufficient}$ -- There is a difference in average weight between the two groups.
+
+```{r ex12}
+# Create a binary sleep variable
+yrbss <- yrbss %>%
+  mutate(enough_sleep = ifelse(school_night_hours_sleep >= 8, "yes", "no"))
+
+# Check conditions: group sizes and summary stats
+yrbss %>%
+  drop_na(enough_sleep, weight) %>%
+  group_by(enough_sleep) %>%
+  summarise(count = n(), mean_wt = mean(weight), sd_wt = sd(weight))
+```
+
+**Checking conditions**:
+
+- **Independence**: The data come from a random sample conducted by the CDC, and the sample is less than 10% of the population. The two groups are independent. Condition met.
+- **Sample size**: Both groups have well over 30 observations. Condition met.
+- **Normality**: With large sample sizes, the Central Limit Theorem ensures the sampling distribution of the mean is approximately normal. Condition met.
+
+```{r ex12-test}
+# Observed difference
+obs_diff_sleep <- yrbss %>%
+  drop_na(enough_sleep, weight) %>%
+  specify(weight ~ enough_sleep) %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+obs_diff_sleep
+
+# Null distribution
+null_dist_sleep <- yrbss %>%
+  drop_na(enough_sleep, weight) %>%
+  specify(weight ~ enough_sleep) %>%
+  hypothesize(null = "independence") %>%
+  generate(reps = 1000, type = "permute") %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+
+# P-value
+null_dist_sleep %>%
+  get_p_value(obs_stat = obs_diff_sleep, direction = "two_sided")
+
+# Confidence interval via bootstrap
+boot_sleep <- yrbss %>%
+  drop_na(enough_sleep, weight) %>%
+  specify(weight ~ enough_sleep) %>%
+  generate(reps = 1000, type = "bootstrap") %>%
+  calculate(stat = "diff in means", order = c("yes", "no"))
+
+ci_sleep <- boot_sleep %>%
+  get_confidence_interval(level = 0.95)
+ci_sleep
+
+# Visualization
+visualize(null_dist_sleep) +
+  shade_p_value(obs_stat = obs_diff_sleep, direction = "two_sided")
+```
+
+**Conclusion**: At the $\alpha = 0.05$ significance level, the p-value from the permutation test indicates whether or not we reject the null hypothesis. Additionally, the 95% confidence interval tells us the plausible range for the true difference in average weight. If the confidence interval does not contain zero, this is consistent with rejecting the null hypothesis. In plain language, the test evaluates whether sleep habits are associated with a difference in weight among high school students. Based on these results, we can determine whether students who get sufficient sleep differ in average weight from those who do not.
 
 * * *
